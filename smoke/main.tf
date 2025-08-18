@@ -3,7 +3,7 @@ terraform {
     bucket         = "tf-state-850924742419-dev"
     key            = "rds-redis/dev/smoke.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "tf-locks-dev"
+    use_lockfile = true
     encrypt        = true
   }
 }
