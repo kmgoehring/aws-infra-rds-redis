@@ -1,10 +1,10 @@
 terraform {
   backend "s3" {
-    bucket         = "tf-state-850924742419-dev"
-    key            = "rds-redis/dev/smoke.tfstate"
-    region         = "us-east-1"
+    bucket       = "tf-state-850924742419-dev"
+    key          = "rds-redis/dev/smoke.tfstate"
+    region       = "us-east-1"
     use_lockfile = true
-    encrypt        = true
+    encrypt      = true
   }
 }
 provider "aws" { region = "us-east-1" }
