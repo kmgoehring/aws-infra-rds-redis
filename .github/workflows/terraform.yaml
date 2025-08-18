@@ -1,1 +1,7 @@
 
+on:
+  pull_request:
+    paths:
+      - '**/*.tf'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
