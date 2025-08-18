@@ -1,7 +1,10 @@
 
+name: placeholder
 on:
-  pull_request:
-    paths:
-      - '**/*.tf'
-      - '.github/workflows/terraform.yml'
   workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No jobs yet"
+
