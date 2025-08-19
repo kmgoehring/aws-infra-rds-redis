@@ -119,15 +119,14 @@ jobs:
     environment: dev
     steps:
       - uses: actions/checkout@v4
+      - name: Who am I?
+        run: aws sts get-caller-identity
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Who am I?
-        run: aws sts get-caller-identity
-
 
       - uses: hashicorp/setup-terraform@v3
         with:
