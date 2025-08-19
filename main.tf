@@ -34,6 +34,12 @@ data "aws_ssm_parameter" "al2023_x86_64" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
 }
 
+# Generate a password when one isn't provided via var.db_password
+resource "random_password" "db" {
+  length  = 20
+  special = true
+}
+
 locals {
   # Chosen AZs (first two available)
   az0 = data.aws_availability_zones.available.names[0]
