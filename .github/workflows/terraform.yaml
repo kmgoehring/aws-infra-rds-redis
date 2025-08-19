@@ -1,23 +1,18 @@
-# Dev-only workflow with PR Plan comments + manual approval gate before apply
-# - Plans on PRs (dev tfvars), posts a sticky PR comment with the plan
-# - Applies on merge to main, but waits for manual approval via the "dev" Environment
-# - Uses AWS OIDC (no long-lived keys) and caches providers
+# ================= 7) .github/workflows/terraform.yml =================
+# Dev-only workflow WITHOUT PRs. Runs a Plan on push to main, shows it in the
+# job summary, and waits for manual approval (Environment "dev") before Apply.
+# Uses AWS OIDC; caches providers. You can also trigger manually via
+# "Run workflow" (workflow_dispatch).
 #
-# Setup steps (once):
-# 1) Repo Settings → Actions → Variables: set AWS_REGION (e.g., us-east-1)
-# 2) Repo Settings → Actions → Variables or Secrets: set AWS_ROLE_ARN = arn:aws:iam::<acct>:role/GitHubActionsTerraformRole
-# 3) Repo Settings → Environments → New environment "dev" → Required reviewers (your account)
-# 4) Branch protection on main: require PRs + status checks (fmt_validate, plan_dev) before merge
-# 5) Ensure envs/dev/terraform.tfvars exists in the repo
+# Setup once in GitHub:
+# 1) Settings → Actions → Variables: set AWS_REGION (e.g., us-east-1)
+# 2) Settings → Actions → Variables or Secrets: set AWS_ROLE_ARN to your OIDC role ARN
+# 3) Settings → Environments → New environment "dev" → Required reviewers (you)
+# 4) Ensure envs/dev/terraform.tfvars exists in the repo
 
 name: Terraform (dev)
 
 on:
-  pull_request:
-    paths:
-      - '**/*.tf'
-      - 'envs/**'
-      - '.github/workflows/terraform.yml'
   push:
     branches: [ main ]
     paths:
@@ -27,12 +22,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write      # for AWS OIDC
+  id-token: write
   contents: read
-  pull-requests: write # to comment on PRs
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   TF_IN_AUTOMATION: 'true'
   TF_INPUT: 'false'
   TF_CLI_ARGS: '-no-color'
@@ -69,9 +63,8 @@ jobs:
           terraform validate
 
   plan_dev:
-    name: Plan (dev) + PR comment
+    name: Plan (dev) on push
     needs: fmt_validate
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +72,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
@@ -105,13 +98,12 @@ jobs:
       - name: Render plan to file
         run: terraform show -no-color tfplan > plan.txt
 
-      - name: Sticky PR comment with plan
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: terraform-plan
-          path: plan.txt
+      - name: Summarize plan in job summary
+        run: |
+          echo '### Terraform Plan (dev)' >> $GITHUB_STEP_SUMMARY
+          sed -n '1,400p' plan.txt >> $GITHUB_STEP_SUMMARY
 
-      - name: Attach plan artifact (optional)
+      - name: Upload Plan artifact
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-dev
@@ -119,17 +111,16 @@ jobs:
 
   apply_dev:
     name: Apply (dev) — requires approval
-    needs: fmt_validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: plan_dev
     runs-on: ubuntu-latest
-    environment: dev   # gate with required reviewers in Settings → Environments
+    environment: dev
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
@@ -145,14 +136,11 @@ jobs:
       - name: Terraform Init
         run: terraform init -reconfigure
 
-      - name: Terraform Plan (for apply)
-        run: terraform plan -lock-timeout=2m -var-file="envs/dev/terraform.tfvars" -out=tfplan
-
-      - name: Summarize plan
-        run: |
-          echo '### Terraform Plan (dev, post-merge)' >> $GITHUB_STEP_SUMMARY
-          terraform show -no-color tfplan | sed -n '1,300p' >> $GITHUB_STEP_SUMMARY
+      - name: Download Plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-dev
+          path: .
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
-
