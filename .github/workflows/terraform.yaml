@@ -119,8 +119,17 @@ jobs:
     environment: dev
     steps:
       - uses: actions/checkout@v4
-      - name: Who am I?
-        run: aws sts get-caller-identity
+      - name: Debug OIDC token claims (what AWS sees)
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          # Request a GitHub OIDC token for audience sts.amazonaws.com
+          TOKEN_JSON=$(curl -sSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+          TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
+          echo "OIDC payload ↓"
+          echo "$TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq .
+          echo "Computed expected sub:"
+          echo "repo:${{ github.repository }}:ref:${{ github.ref }}"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
