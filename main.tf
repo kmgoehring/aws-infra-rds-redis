@@ -42,6 +42,7 @@ resource "random_password" "db" {
 
 locals {
   # Chosen AZs (first two available)
+  #
   az0 = data.aws_availability_zones.available.names[0]
   az1 = data.aws_availability_zones.available.names[1]
 
