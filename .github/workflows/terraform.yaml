@@ -46,7 +46,10 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: 1.11.0
+
+      - name: Terraform version
+        run: terraform version
 
       - name: Cache Terraform providers
         uses: actions/cache@v4
@@ -77,7 +80,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: 1.11.0
 
       - name: Cache Terraform providers
         uses: actions/cache@v4
@@ -125,7 +128,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: 1.11.0
 
       - name: Cache Terraform providers
         uses: actions/cache@v4
